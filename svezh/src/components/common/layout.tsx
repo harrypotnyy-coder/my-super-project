@@ -1,0 +1,56 @@
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
+
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const { user, logout } = useAuth();
+  const location = useLocation();
+
+  const navItems = [
+    { path: '/', label: 'Дашборд' },
+    { path: '/map', label: 'Карта' },
+    { path: '/registry', label: 'Реестр' },
+    { path: '/devices', label: 'Устройства' },
+    { path: '/events', label: 'События' },
+  ];
+
+  return (
+    <div className="app-layout">
+      <nav className="sidebar">
+        <div className="user-info">
+          <h3>{user?.name}</h3>
+          <span>{user?.attributes.role}</span>
+        </div>
+        
+        <ul className="nav-menu">
+          {navItems.map(item => (
+            <li key={item.path}>
+              <Link 
+                to={item.path} 
+                className={location.pathname === item.path ? 'active' : ''}
+              >
+                {item.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+        
+        <button onClick={logout} className="logout-button">
+          Выйти
+        </button>
+      </nav>
+
+      
+      
+      <main className="main-content">
+        {children}
+      </main>
+    </div>
+  );
+};
+
+export default Layout;
