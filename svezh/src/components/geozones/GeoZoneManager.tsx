@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, FeatureGroup, Polygon, Marker, Popup } from 'react-leaflet';
-import { EditControl } from 'react-leaflet-draw';
+import React, { useState, useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Polygon, Popup, useMap } from 'react-leaflet';
 import axios from 'axios';
+import L from 'leaflet';
+import '@geoman-io/leaflet-geoman-free';
+import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet-draw/dist/leaflet.draw.css';
 
 const API_URL = 'http://localhost:8083/api';
 
@@ -19,6 +20,48 @@ interface Client {
   id: number;
   fio: string;
 }
+
+// Компонент для управления рисованием
+const DrawControl: React.FC<{ onCreated: (coordinates: number[][]) => void }> = ({ onCreated }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    // Настройка Geoman
+    map.pm.addControls({
+      position: 'topright',
+      drawCircle: false,
+      drawCircleMarker: false,
+      drawMarker: false,
+      drawPolyline: false,
+      drawRectangle: false,
+      drawPolygon: true,
+      editMode: false,
+      dragMode: false,
+      cutPolygon: false,
+      removalMode: false,
+    });
+
+    // Обработчик создания полигона
+    map.on('pm:create', (e: any) => {
+      const layer = e.layer;
+      if (layer instanceof L.Polygon) {
+        const coordinates = layer.getLatLngs()[0].map((latLng: any) => [
+          latLng.lat,
+          latLng.lng
+        ]);
+        onCreated(coordinates);
+        // Удаляем нарисованный слой после сохранения
+        map.removeLayer(layer);
+      }
+    });
+
+    return () => {
+      map.pm.removeControls();
+    };
+  }, [map, onCreated]);
+
+  return null;
+};
 
 export const GeoZoneManager: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -61,15 +104,8 @@ export const GeoZoneManager: React.FC = () => {
     }
   };
 
-  const handleCreated = async (e: any) => {
-    const { layerType, layer } = e;
-
-    if (layerType === 'polygon' && selectedClientId && zoneName) {
-      const coordinates = layer.getLatLngs()[0].map((latLng: any) => [
-        latLng.lat,
-        latLng.lng
-      ]);
-
+  const handleCreated = async (coordinates: number[][]) => {
+    if (selectedClientId && zoneName) {
       try {
         const token = localStorage.getItem('token');
         await axios.post(
@@ -91,6 +127,8 @@ export const GeoZoneManager: React.FC = () => {
         console.error('Error creating geozone:', error);
         alert('Ошибка при создании геозоны');
       }
+    } else {
+      alert('Пожалуйста, выберите осужденного и введите название геозоны');
     }
   };
 
@@ -176,26 +214,7 @@ export const GeoZoneManager: React.FC = () => {
                 attribution='&copy; OpenStreetMap contributors'
               />
 
-              <FeatureGroup>
-                <EditControl
-                  position="topright"
-                  onCreated={handleCreated}
-                  draw={{
-                    rectangle: false,
-                    circle: false,
-                    circlemarker: false,
-                    marker: false,
-                    polyline: false,
-                    polygon: {
-                      allowIntersection: false,
-                      shapeOptions: {
-                        color: '#97009c',
-                        weight: 2
-                      }
-                    }
-                  }}
-                />
-              </FeatureGroup>
+              <DrawControl onCreated={handleCreated} />
 
               {geoZones.map(zone => (
                 <Polygon
