@@ -1,5 +1,5 @@
 // components/map/RealMap.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import api from '../../services/api';
 import 'leaflet/dist/leaflet.css';
@@ -61,12 +61,7 @@ const RealMap: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
 
-  useEffect(() => {
-    setIsClient(true);
-    loadClients();
-  }, []);
-
-  const loadClients = async () => {
+  const loadClients = useCallback(async () => {
     try {
       const response = await api.get('/admin/clients');
       const clientsData = response.data || [];
@@ -98,7 +93,6 @@ const RealMap: React.FC = () => {
         };
       });
 
-      console.log('Осужденные для карты:', clientsWithPositions);
       setClients(clientsWithPositions);
     } catch (error) {
       console.error('Ошибка загрузки осужденных:', error);
@@ -106,7 +100,12 @@ const RealMap: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    setIsClient(true);
+    loadClients();
+  }, [loadClients]);
 
   const getStatusColor = (status: string) => {
     return status === 'online' ? '#10b981' : '#ef4444';
