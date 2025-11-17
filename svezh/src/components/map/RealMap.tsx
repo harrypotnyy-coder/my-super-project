@@ -1,42 +1,51 @@
 // components/map/RealMap.tsx
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { devicesAPI } from '../../services/api';
+import api from '../../services/api';
 import 'leaflet/dist/leaflet.css';
+import './RealMap.css';
 import L from 'leaflet';
 
-// Кастомные иконки вместо стандартных
-const createCustomIcon = (status: string) => {
+// Кастомная иконка с фото осужденного
+const createPhotoIcon = (client: ClientWithPosition) => {
+  const photoUrl = client.photoKey
+    ? `http://localhost:8083/api/faces/photos/${client.photoKey}`
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(client.fio)}&background=3b82f6&color=fff&size=80`;
+
+  const statusColor = client.status === 'online' ? '#10b981' : '#ef4444';
+
   return new L.DivIcon({
     html: `
-      <div style="
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: ${status === 'online' ? '#27ae60' : '#e74c3c'};
-        border: 3px solid white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 18px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      ">
-        👤
+      <div class="client-marker">
+        <div class="client-avatar" style="border-color: ${statusColor}">
+          <img src="${photoUrl}" alt="${client.fio}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(client.fio)}&background=3b82f6&color=fff&size=80'" />
+        </div>
+        <div class="status-indicator" style="background-color: ${statusColor}"></div>
       </div>
     `,
-    className: 'custom-marker',
-    iconSize: [40, 40],
-    iconAnchor: [20, 40],
+    className: 'custom-client-marker',
+    iconSize: [50, 50],
+    iconAnchor: [25, 50],
   });
 };
 
-interface DeviceWithPosition {
+interface ClientWithPosition {
   id: number;
-  name: string;
-  uniqueId: string;
+  fio: string;
+  birthDate?: string;
+  sex?: string;
+  inn?: string;
+  passportNumber?: string;
+  registrationAddress?: string;
+  actualAddress?: string;
+  phoneNumber?: string;
+  emergencyContact?: string;
+  supervisionType?: string;
+  supervisionStartDate?: string;
+  supervisionEndDate?: string;
+  districtName?: string;
+  photoKey?: string;
   status: string;
-  attributes: any;
   position?: {
     latitude: number;
     longitude: number;
@@ -48,116 +57,87 @@ interface DeviceWithPosition {
 const BISHKEK_CENTER = [42.8746, 74.5698] as [number, number];
 
 const RealMap: React.FC = () => {
-  const [devices, setDevices] = useState<DeviceWithPosition[]>([]);
+  const [clients, setClients] = useState<ClientWithPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
-    loadDevices();
+    loadClients();
   }, []);
 
-  const loadDevices = async () => {
+  const loadClients = async () => {
     try {
-      const devicesResponse = await devicesAPI.getDevices();
-      const devicesData = devicesResponse.data || [];
-      
-      // Если нет реальных устройств, используем тестовые
-      let devicesWithPositions;
-      if (devicesData.length === 0) {
-        devicesWithPositions = getMockDevices();
-      } else {
-        devicesWithPositions = devicesData.map((device: any, index: number) => {
-          const bishkekLocations = [
-            [42.8746, 74.5698], // Центр Бишкека
-            [42.8784, 74.5865], // Проспект Чуй
-            [42.8510, 74.5585], // Юг города
-            [42.8900, 74.6100], // Северо-восток
-            [42.8600, 74.5400], // Запад
-            [42.8350, 74.5900], // Ошский рынок
-          ];
-          
-          const location = bishkekLocations[index % bishkekLocations.length];
-          
-          return {
-            ...device,
-            position: {
-              latitude: location[0],
-              longitude: location[1],
-              timestamp: new Date().toISOString()
-            }
-          };
-        });
-      }
+      const response = await api.get('/admin/clients');
+      const clientsData = response.data || [];
 
-      console.log('Устройства для карты:', devicesWithPositions);
-      setDevices(devicesWithPositions);
+      // Временно используем тестовые позиции в Бишкеке
+      // TODO: интегрировать с реальным Position API
+      const clientsWithPositions = clientsData.map((client: any, index: number) => {
+        const bishkekLocations = [
+          [42.8746, 74.5698], // Центр Бишкека
+          [42.8784, 74.5865], // Проспект Чуй
+          [42.8510, 74.5585], // Юг города
+          [42.8900, 74.6100], // Северо-восток
+          [42.8600, 74.5400], // Запад
+          [42.8350, 74.5900], // Ошский рынок
+          [42.8820, 74.5920], // Ала-Тоо площадь
+          [42.8450, 74.6050], // Политехнический институт
+        ];
+
+        const location = bishkekLocations[index % bishkekLocations.length];
+
+        return {
+          ...client,
+          status: index % 3 === 0 ? 'offline' : 'online', // Временный статус
+          position: {
+            latitude: location[0],
+            longitude: location[1],
+            timestamp: new Date().toISOString()
+          }
+        };
+      });
+
+      console.log('Осужденные для карты:', clientsWithPositions);
+      setClients(clientsWithPositions);
     } catch (error) {
-      console.error('Ошибка загрузки устройств:', error);
-      // Используем тестовые данные при ошибке
-      setDevices(getMockDevices());
+      console.error('Ошибка загрузки осужденных:', error);
+      setClients([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Тестовые устройства в Бишкеке с названиями "Клиент 1", "Клиент 2" и т.д.
-  const getMockDevices = (): DeviceWithPosition[] => {
-    return [
-      {
-        id: 1,
-        name: 'Клиент 1',
-        uniqueId: 'bishkek001',
-        status: 'online',
-        attributes: { faceOk: true, lastFaceAt: new Date().toISOString() },
-        position: { latitude: 42.8746, longitude: 74.5698, timestamp: new Date().toISOString() }
-      },
-      {
-        id: 2,
-        name: 'Клиент 2',
-        uniqueId: 'bishkek002',
-        status: 'online',
-        attributes: { faceOk: false, lastFaceAt: new Date().toISOString() },
-        position: { latitude: 42.8784, longitude: 74.5865, timestamp: new Date().toISOString() }
-      },
-      {
-        id: 3,
-        name: 'Клиент 3',
-        uniqueId: 'bishkek003',
-        status: 'offline',
-        attributes: { faceOk: null },
-        position: { latitude: 42.8510, longitude: 74.5585, timestamp: new Date().toISOString() }
-      },
-      {
-        id: 4,
-        name: 'Клиент 4',
-        uniqueId: 'bishkek004',
-        status: 'online',
-        attributes: { faceOk: true, lastFaceAt: new Date().toISOString() },
-        position: { latitude: 42.8900, longitude: 74.6100, timestamp: new Date().toISOString() }
-      },
-      {
-        id: 5,
-        name: 'Клиент 5',
-        uniqueId: 'bishkek005',
-        status: 'offline',
-        attributes: { faceOk: false, lastFaceAt: new Date().toISOString() },
-        position: { latitude: 42.8600, longitude: 74.5400, timestamp: new Date().toISOString() }
-      }
-    ];
-  };
-
   const getStatusColor = (status: string) => {
-    return status === 'online' ? '#27ae60' : '#e74c3c';
+    return status === 'online' ? '#10b981' : '#ef4444';
   };
 
   const getStatusText = (status: string) => {
     return status === 'online' ? '🟢 Онлайн' : '🔴 Оффлайн';
   };
 
+  const calculateAge = (birthDate?: string): number | null => {
+    if (!birthDate) return null;
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const formatDate = (dateString?: string): string => {
+    if (!dateString) return 'Не указано';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU');
+  };
+
   if (!isClient) {
     return (
       <div className="map-loading">
+        <div className="spinner"></div>
         <div>Инициализация карты...</div>
       </div>
     );
@@ -166,97 +146,167 @@ const RealMap: React.FC = () => {
   if (loading) {
     return (
       <div className="map-loading">
-        <div>Загрузка устройств...</div>
+        <div className="spinner"></div>
+        <div>Загрузка данных...</div>
       </div>
     );
   }
 
-  const devicesWithValidPositions = devices.filter(device => 
-    device.position && 
-    !isNaN(device.position.latitude) && 
-    !isNaN(device.position.longitude)
+  const clientsWithValidPositions = clients.filter(client =>
+    client.position &&
+    !isNaN(client.position.latitude) &&
+    !isNaN(client.position.longitude)
   );
 
   return (
     <div className="real-map-page">
-      <div className="map-content-wrapper">
-        <div className="map-container-wrapper" style={{ position: 'relative' }}>
-          <MapContainer 
-            center={BISHKEK_CENTER} 
-            zoom={12} 
-            style={{ 
-              height: '100%', 
-              width: '100%',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0
-            }}
-            className="real-map"
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            />
-            
-            {devicesWithValidPositions.map(device => (
-              <Marker 
-                key={device.id}
-                position={[device.position!.latitude, device.position!.longitude]}
-                icon={createCustomIcon(device.status)}
+      <div className="map-container-wrapper" style={{ position: 'relative', height: '100%', width: '100%' }}>
+        <MapContainer
+          center={BISHKEK_CENTER}
+          zoom={12}
+          style={{
+            height: '100%',
+            width: '100%',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0
+          }}
+          className="real-map"
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+
+          {clientsWithValidPositions.map(client => {
+            const photoUrl = client.photoKey
+              ? `http://localhost:8083/api/faces/photos/${client.photoKey}`
+              : `https://ui-avatars.com/api/?name=${encodeURIComponent(client.fio)}&background=3b82f6&color=fff&size=80`;
+
+            const age = calculateAge(client.birthDate);
+
+            return (
+              <Marker
+                key={client.id}
+                position={[client.position!.latitude, client.position!.longitude]}
+                icon={createPhotoIcon(client)}
               >
-                <Popup>
-                  <div className="device-popup">
-                    <h3>{device.name}</h3>
-                    <div className="popup-details">
-                      <p><strong>ID:</strong> {device.uniqueId}</p>
-                      <p><strong>Статус:</strong> 
-                        <span style={{color: getStatusColor(device.status), marginLeft: '5px'}}>
-                          {getStatusText(device.status)}
-                        </span>
-                      </p>
-                      <p><strong>FaceID:</strong> 
-                        {device.attributes?.faceOk === true ? ' ✅ Пройдена' : 
-                         device.attributes?.faceOk === false ? ' ❌ Не пройдена' : ' ❓ Не проверялась'}
-                      </p>
-                      {device.attributes?.lastFaceAt && (
-                        <p><strong>Последняя проверка:</strong> 
-                          {new Date(device.attributes.lastFaceAt).toLocaleString()}
-                        </p>
-                      )}
-                      <p><strong>Локация:</strong> Бишкек</p>
+                <Popup maxWidth={400} className="client-popup">
+                  <div className="popup-header">
+                    <div className="popup-photo">
+                      <img
+                        src={photoUrl}
+                        alt={client.fio}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(client.fio)}&background=3b82f6&color=fff&size=120`;
+                        }}
+                      />
                     </div>
+                    <div className="popup-title">
+                      <h3>{client.fio}</h3>
+                      <span
+                        className="status-badge"
+                        style={{ backgroundColor: getStatusColor(client.status) }}
+                      >
+                        {getStatusText(client.status)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="popup-content">
+                    <div className="info-section">
+                      <h4>📋 Основная информация</h4>
+                      <div className="info-row">
+                        <span className="label">Возраст:</span>
+                        <span className="value">{age !== null ? `${age} лет` : 'Не указано'}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="label">Пол:</span>
+                        <span className="value">{client.sex || 'Не указано'}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="label">ИНН:</span>
+                        <span className="value">{client.inn || 'Не указано'}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="label">Паспорт:</span>
+                        <span className="value">{client.passportNumber || 'Не указано'}</span>
+                      </div>
+                    </div>
+
+                    <div className="info-section">
+                      <h4>📍 Адреса</h4>
+                      <div className="info-row">
+                        <span className="label">Регистрация:</span>
+                        <span className="value">{client.registrationAddress || 'Не указано'}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="label">Фактический:</span>
+                        <span className="value">{client.actualAddress || 'Не указано'}</span>
+                      </div>
+                    </div>
+
+                    <div className="info-section">
+                      <h4>📞 Контакты</h4>
+                      <div className="info-row">
+                        <span className="label">Телефон:</span>
+                        <span className="value">{client.phoneNumber || 'Не указано'}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="label">Экстренный контакт:</span>
+                        <span className="value">{client.emergencyContact || 'Не указано'}</span>
+                      </div>
+                    </div>
+
+                    <div className="info-section">
+                      <h4>⚖️ Надзор</h4>
+                      <div className="info-row">
+                        <span className="label">Тип:</span>
+                        <span className="value">{client.supervisionType || 'Не указано'}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="label">Начало:</span>
+                        <span className="value">{formatDate(client.supervisionStartDate)}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="label">Окончание:</span>
+                        <span className="value">{formatDate(client.supervisionEndDate)}</span>
+                      </div>
+                      <div className="info-row">
+                        <span className="label">Район:</span>
+                        <span className="value">{client.districtName || 'Не указано'}</span>
+                      </div>
+                    </div>
+
+                    {client.position && (
+                      <div className="info-section">
+                        <h4>🗺️ Текущая позиция</h4>
+                        <div className="info-row">
+                          <span className="label">Координаты:</span>
+                          <span className="value">
+                            {client.position.latitude.toFixed(6)}, {client.position.longitude.toFixed(6)}
+                          </span>
+                        </div>
+                        <div className="info-row">
+                          <span className="label">Обновлено:</span>
+                          <span className="value">
+                            {new Date(client.position.timestamp).toLocaleString('ru-RU')}
+                          </span>
+                        </div>
+                        <div className="info-row">
+                          <span className="label">Локация:</span>
+                          <span className="value">Бишкек</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </Popup>
               </Marker>
-            ))}
-          </MapContainer>
-        </div>
-
-        <div className="devices-sidebar">
-          <h3>Устройства в Бишкеке ({devices.length})</h3>
-          <div className="devices-list">
-            {devices.map(device => (
-              <div key={device.id} className="device-item">
-                <div className="device-header">
-                  <span className="device-name">{device.name}</span>
-                  <span className={`device-status ${device.status}`}>
-                    {device.status === 'online' ? '🟢' : '🔴'}
-                  </span>
-                </div>
-                <div className="device-id">{device.uniqueId}</div>
-                {device.position ? (
-                  <div className="device-position">
-                    📍 {device.position.latitude.toFixed(4)}, {device.position.longitude.toFixed(4)}
-                  </div>
-                ) : (
-                  <div className="no-position">📍 Нет данных о позиции</div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+            );
+          })}
+        </MapContainer>
       </div>
     </div>
   );

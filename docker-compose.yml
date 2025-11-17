@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # База данных PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: probation-postgres
+    environment:
+      POSTGRES_DB: probation_db
+      POSTGRES_USER: probation_user
+      POSTGRES_PASSWORD: probation_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - probation-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U probation_user -d probation_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend (Spring Boot)
+  backend:
+    build:
+      context: ./FreshBackend
+      dockerfile: Dockerfile
+    container_name: probation-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/probation_db
+      SPRING_DATASOURCE_USERNAME: probation_user
+      SPRING_DATASOURCE_PASSWORD: probation_pass
+      SERVER_PORT: 8083
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - probation-network
+    volumes:
+      - backend_uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend (React + Vite)
+  frontend:
+    build:
+      context: ./svezh
+      dockerfile: Dockerfile
+    container_name: probation-frontend
+    depends_on:
+      - backend
+    networks:
+      - probation-network
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: probation-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./svezh/dist:/usr/share/nginx/html:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - probation-network
+    restart: unless-stopped
+
+networks:
+  probation-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  backend_uploads:
+    driver: local
+  nginx_logs:
+    driver: local
