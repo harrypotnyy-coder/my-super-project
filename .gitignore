@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+iosandroid/node_modules/
+svezh/node_modules/
+FreshBackend/.gradle/
+
+# Expo
+iosandroid/.expo/
+.expo/
+.expo-shared/
+
+# Build artifacts
+iosandroid/android/app/build/
+iosandroid/ios/build/
+FreshBackend/build/
+svezh/dist/
+svezh/build/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+.cache/
