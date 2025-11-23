@@ -1,6 +1,6 @@
 // Базовые настройки API
 export const API_CONFIG = {
-  BASE_URL: 'http://85.113.27.42:3728/api',  // НОВЫЙ ПОРТ 3728
+  BASE_URL: 'https://unprescribed-barefootedly-jenni.ngrok-free.dev/api',  // ngrok tunnel → Spring Boot :8083
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,
