@@ -42,11 +42,10 @@ const LoginScreen = () => {
         
         <TextInput
           style={styles.input}
-          placeholder="ИНН"
+          placeholder="ИНН (логин)"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
-          keyboardType="numeric"
         />
         
         <TextInput
