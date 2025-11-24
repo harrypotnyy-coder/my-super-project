@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,30 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from 'react-native';
 import { useAuth } from '../store/authContext';
+import AuthService from '../services/auth';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const { login } = useAuth();
+
+  // Загружаем последний сохраненный ИНН при монтировании компонента
+  useEffect(() => {
+    loadLastLoginINN();
+  }, []);
+
+  const loadLastLoginINN = async () => {
+    const lastINN = await AuthService.getLastLoginINN();
+    if (lastINN) {
+      setEmail(lastINN);
+      setRememberMe(true);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -27,7 +43,10 @@ const LoginScreen = () => {
     const result = await login(email, password);
     setLoading(false);
 
-    if (!result.success) {
+    if (result.success) {
+      // Сохраняем ИНН, если включен "Запомнить меня"
+      await AuthService.saveLoginCredentials(email, rememberMe);
+    } else {
       Alert.alert('Ошибка входа', result.message);
     }
   };
@@ -55,7 +74,17 @@ const LoginScreen = () => {
           onChangeText={setPassword}
           secureTextEntry={true}
         />
-        
+
+        <View style={styles.rememberMeContainer}>
+          <Switch
+            value={rememberMe}
+            onValueChange={setRememberMe}
+            trackColor={{ false: '#ddd', true: '#007AFF' }}
+            thumbColor={rememberMe ? '#fff' : '#f4f3f4'}
+          />
+          <Text style={styles.rememberMeText}>Запомнить ИНН</Text>
+        </View>
+
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleLogin}
@@ -101,6 +130,16 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderRadius: 8,
     fontSize: 16,
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  rememberMeText: {
+    marginLeft: 10,
+    fontSize: 16,
+    color: '#333',
   },
   button: {
     backgroundColor: '#007AFF',
