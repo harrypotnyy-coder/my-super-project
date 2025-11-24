@@ -1,6 +1,6 @@
 // Базовые настройки API
 export const API_CONFIG = {
-  BASE_URL: 'https://unprescribed-barefootedly-jenni.ngrok-free.dev/api',  // ngrok tunnel → Spring Boot :8083
+  BASE_URL: 'http://85.113.27.42:8530/api',  // Внешний IP с портом 8530 (geo-filtered, только KG)
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,
@@ -9,9 +9,9 @@ export const API_CONFIG = {
 // URL для Traccar GPS данных
 export const TRACCAR_CONFIG = {
   // Для GPS данных используем основной URL без /traccar/ пути
-  GPS_ENDPOINT: 'http://your-domain.com', // Порт 80 через Nginx
+  GPS_ENDPOINT: 'http://85.113.27.42:8530', // Порт 8530 через Nginx (geo-filtered)
   // Для API запросов к Traccar
-  API_ENDPOINT: 'http://your-domain.com/traccar/api',
+  API_ENDPOINT: 'http://85.113.27.42:8530/traccar/api',
 };
 
 // Коды ошибок

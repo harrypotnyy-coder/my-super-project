@@ -282,7 +282,7 @@ class GPSService {
   // Отправка через Spring Boot бэкенд
   async sendViaSpringBoot(positionData) {
     try {
-      const API_BASE_URL = 'http://85.113.27.42:80/api';
+      const API_BASE_URL = 'http://85.113.27.42:8530/api';  // Порт 8530 с geo-filtering (только KG IP)
       const response = await fetch(`${API_BASE_URL}/traccar/positions`, {
         method: 'POST',
         headers: {
