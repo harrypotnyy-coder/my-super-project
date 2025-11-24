@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { authAPI } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { normalizeUserData } from '../utils/helpers';
+import { API_CONFIG } from '../utils/constants';
 
 const AuthContext = createContext();
 
@@ -59,6 +60,9 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      console.log('🔐 LOGIN ATTEMPT:', { email, password: '***' });
+      console.log('📡 API BASE_URL:', API_CONFIG.BASE_URL);
+
       const response = await authAPI.login(email, password);
       const { token: newToken, user: userData } = response.data;
 
@@ -86,9 +90,27 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true };
     } catch (error) {
+      console.error('❌ LOGIN ERROR:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error message:', error.message);
+
+      let errorMessage = 'Ошибка входа';
+
+      if (error.response) {
+        // Ошибка от сервера
+        errorMessage = error.response.data?.message || `Ошибка ${error.response.status}`;
+      } else if (error.request) {
+        // Запрос был отправлен, но ответа нет
+        errorMessage = 'Сервер недоступен. Проверьте подключение к интернету';
+      } else {
+        // Ошибка при настройке запроса
+        errorMessage = error.message || 'Неизвестная ошибка';
+      }
+
       return {
         success: false,
-        message: error.response?.data?.message || 'Ошибка входа'
+        message: errorMessage
       };
     }
   };
