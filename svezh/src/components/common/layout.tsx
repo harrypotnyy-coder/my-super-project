@@ -10,7 +10,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
 
-  const isAdmin = user?.attributes?.administrator || user?.attributes?.role === 'deptAdmin' || user?.attributes?.role === 'mruAdmin';
+  const isAdmin = user?.administrator || user?.attributes?.role === 'deptAdmin' || user?.attributes?.role === 'mruAdmin';
 
   const navItems = [
     { path: '/', label: 'Дашборд' },

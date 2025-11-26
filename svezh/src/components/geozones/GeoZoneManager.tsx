@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Polygon, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Popup, useMapEvents } from 'react-leaflet';
 import api from '../../services/api';
-import L from 'leaflet';
-import '@geoman-io/leaflet-geoman-free';
-import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import 'leaflet/dist/leaflet.css';
 import './GeoZoneManager.css';
 
@@ -20,41 +17,14 @@ interface Client {
   fio: string;
 }
 
-// Компонент для управления рисованием
-const DrawControl: React.FC<{ onCreated: (coordinates: number[][]) => void }> = ({ onCreated }) => {
-  const map = useMap();
-
-  useEffect(() => {
-    map.pm.addControls({
-      position: 'topright',
-      drawCircle: false,
-      drawCircleMarker: false,
-      drawMarker: false,
-      drawPolyline: false,
-      drawRectangle: false,
-      drawPolygon: true,
-      editMode: false,
-      dragMode: false,
-      cutPolygon: false,
-      removalMode: false,
-    });
-
-    map.on('pm:create', (e: any) => {
-      const layer = e.layer;
-      if (layer instanceof L.Polygon) {
-        const coordinates = layer.getLatLngs()[0].map((latLng: any) => [
-          latLng.lat,
-          latLng.lng
-        ]);
-        onCreated(coordinates);
-        map.removeLayer(layer);
+const MapClickHandler: React.FC<{ isDrawing: boolean; onAddPoint: (coordinates: [number, number]) => void }> = ({ isDrawing, onAddPoint }) => {
+  useMapEvents({
+    click(e) {
+      if (isDrawing) {
+        onAddPoint([e.latlng.lat, e.latlng.lng]);
       }
-    });
-
-    return () => {
-      map.pm.removeControls();
-    };
-  }, [map, onCreated]);
+    },
+  });
 
   return null;
 };
@@ -66,6 +36,7 @@ export const GeoZoneManager: React.FC = () => {
   const [zoneName, setZoneName] = useState('');
   const [drawnCoordinates, setDrawnCoordinates] = useState<number[][] | null>(null);
   const [mapCenter] = useState<[number, number]>([42.8746, 74.5698]); // Бишкек
+  const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
     loadClients();
@@ -97,8 +68,20 @@ export const GeoZoneManager: React.FC = () => {
     }
   };
 
-  const handlePolygonDrawn = (coordinates: number[][]) => {
-    setDrawnCoordinates(coordinates);
+  const handlePolygonPoint = (coordinates: [number, number]) => {
+    setDrawnCoordinates(prev => [...(prev ?? []), coordinates]);
+  };
+
+  const startDrawing = () => {
+    setDrawnCoordinates([]);
+    setIsDrawing(true);
+  };
+
+  const finishDrawing = () => setIsDrawing(false);
+
+  const clearDrawing = () => {
+    setDrawnCoordinates(null);
+    setIsDrawing(false);
   };
 
   const saveGeoZone = async () => {
@@ -117,6 +100,7 @@ export const GeoZoneManager: React.FC = () => {
 
       setZoneName('');
       setDrawnCoordinates(null);
+      setIsDrawing(false);
       loadGeoZones(selectedClientId);
       alert('Геозона успешно создана!');
     } catch (error: any) {
@@ -205,12 +189,24 @@ export const GeoZoneManager: React.FC = () => {
                     />
                   </div>
 
+                  <div className="draw-controls">
+                    <button onClick={startDrawing} className="btn-save" type="button">
+                      Начать рисование
+                    </button>
+                    <button onClick={finishDrawing} className="btn-secondary" type="button" disabled={!isDrawing}>
+                      Завершить рисование
+                    </button>
+                    <button onClick={clearDrawing} className="btn-secondary" type="button" disabled={!drawnCoordinates?.length}>
+                      Очистить
+                    </button>
+                  </div>
+
                   <div className="instructions">
                     <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                       <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
                       <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
                     </svg>
-                    <span>Нарисуйте полигон на карте, затем введите название и сохраните</span>
+                    <span>Нажмите на карту, чтобы добавить точки полигона, затем сохраните зону</span>
                   </div>
 
                   {drawnCoordinates && (
@@ -221,7 +217,7 @@ export const GeoZoneManager: React.FC = () => {
 
                   <button
                     onClick={saveGeoZone}
-                    disabled={!drawnCoordinates || !zoneName.trim()}
+                    disabled={!drawnCoordinates || drawnCoordinates.length < 3 || !zoneName.trim()}
                     className="btn-save"
                   >
                     Сохранить геозону
@@ -278,8 +274,14 @@ export const GeoZoneManager: React.FC = () => {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             />
+            <MapClickHandler isDrawing={isDrawing} onAddPoint={handlePolygonPoint} />
 
-            {selectedClientId && <DrawControl onCreated={handlePolygonDrawn} />}
+            {drawnCoordinates && drawnCoordinates.length > 0 && (
+              <Polygon
+                positions={drawnCoordinates as [number, number][]}
+                pathOptions={{ color: '#f97316', fillColor: '#f97316', fillOpacity: 0.2, dashArray: '4 4' }}
+              />
+            )}
 
             {geoZones.map(zone => (
               <Polygon

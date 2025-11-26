@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import api from '../../services/api';
 import 'leaflet/dist/leaflet.css';
 import './RealMap.css';
-import L from 'leaflet';
+import * as L from 'leaflet';
 
 // Кастомная иконка с фото осужденного
 const createPhotoIcon = (client: ClientWithPosition) => {
@@ -52,9 +52,6 @@ interface ClientWithPosition {
     timestamp: string;
   };
 }
-
-// Координаты центра Кыргызстана для показа всей страны
-const KYRGYZSTAN_CENTER = [41.20, 74.77] as [number, number];
 
 // Границы Кыргызстана (юго-запад, северо-восток)
 const KYRGYZSTAN_BOUNDS: [[number, number], [number, number]] = [
