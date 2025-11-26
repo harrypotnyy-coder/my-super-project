@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import * as L from 'leaflet';
 import api from '../../services/api';
 import './TrackPlayback.css';
 
@@ -43,7 +43,7 @@ const TrackPlayback: React.FC = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [mapCenter] = useState<[number, number]>([42.8746, 74.5698]); // Бишкек
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     loadClients();
@@ -56,7 +56,7 @@ const TrackPlayback: React.FC = () => {
 
   useEffect(() => {
     if (isPlaying && positions.length > 0) {
-      intervalRef.current = setInterval(() => {
+      intervalRef.current = window.setInterval(() => {
         setCurrentIndex(prev => {
           if (prev >= positions.length - 1) {
             setIsPlaying(false);
@@ -67,14 +67,14 @@ const TrackPlayback: React.FC = () => {
       }, 1000 / playbackSpeed);
     } else {
       if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+        window.clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     }
 
     return () => {
       if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+        window.clearInterval(intervalRef.current);
       }
     };
   }, [isPlaying, playbackSpeed, positions.length]);

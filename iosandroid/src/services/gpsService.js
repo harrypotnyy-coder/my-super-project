@@ -1,8 +1,6 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-// import * as NetInfo from '@react-native-community/netinfo'; // Временно отключено - пакет не установлен
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 import { TRACCAR_CONFIG } from '../utils/constants';
 
 const GPS_TASK_NAME = 'BACKGROUND_LOCATION_TASK';
@@ -14,6 +12,9 @@ class GPSService {
     this.userId = null;
     this.isOnline = true;
     this.syncInterval = null;
+    this.networkInterval = null;
+    this.webOnlineHandler = null;
+    this.webOfflineHandler = null;
 
     // Подписка на изменения сети
     this.setupNetworkListener();
@@ -21,23 +22,58 @@ class GPSService {
 
   // Настройка слушателя сети
   setupNetworkListener() {
-    // Временно отключено - NetInfo не установлен
-    // Предполагаем что всегда онлайн
-    this.isOnline = true;
-    console.log('Network listener disabled - assuming always online');
+    // Первичная проверка доступности сети
+    this.checkNetworkConnectivity(true);
 
-    /* NetInfo.addEventListener(state => {
-      const wasOffline = !this.isOnline;
-      this.isOnline = state.isConnected;
+    // Web: реагируем на события online/offline если они доступны
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      this.webOnlineHandler = () => this.updateNetworkState(true, 'browser-online');
+      this.webOfflineHandler = () => this.updateNetworkState(false, 'browser-offline');
 
-      console.log('Network status changed:', this.isOnline ? 'Online' : 'Offline');
+      window.addEventListener('online', this.webOnlineHandler);
+      window.addEventListener('offline', this.webOfflineHandler);
+    }
 
-      // Если стали онлайн после оффлайна - синхронизируем
-      if (wasOffline && this.isOnline) {
-        console.log('Network restored, syncing offline data...');
-        this.syncOfflineData();
+    // Периодический ping для нативных платформ
+    this.networkInterval = setInterval(() => {
+      this.checkNetworkConnectivity();
+    }, 30_000); // каждые 30 секунд
+  }
+
+  // Обновление состояния сети и реакция на восстановление
+  updateNetworkState(isConnected, reason = '') {
+    const wasOffline = !this.isOnline;
+    this.isOnline = isConnected;
+
+    console.log(
+      `Network status changed: ${this.isOnline ? 'Online' : 'Offline'}${reason ? ` (${reason})` : ''}`
+    );
+
+    if (wasOffline && this.isOnline) {
+      console.log('Network restored, syncing offline data...');
+      this.syncOfflineData();
+    }
+  }
+
+  // Проверка сетевой доступности через легкий HEAD-запрос
+  async checkNetworkConnectivity(isInitial = false) {
+    try {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 5000) : null;
+
+      await fetch(`${TRACCAR_CONFIG.GPS_ENDPOINT}/`, {
+        method: 'HEAD',
+        signal: controller?.signal,
+      });
+
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
-    }); */
+      this.updateNetworkState(true, isInitial ? 'initial-probe' : 'probe');
+    } catch (error) {
+      console.log('Network probe failed:', error?.message || error);
+      this.updateNetworkState(false, isInitial ? 'initial-probe' : 'probe');
+    }
   }
 
   // Определяем фоновую задачу
