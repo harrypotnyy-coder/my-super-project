@@ -1,6 +1,21 @@
+// URL для разных сред
+export const ENV_URLS = {
+  // Локальная сеть через Nginx (для разработки, когда устройство в той же сети)
+  DEVELOPMENT: 'http://192.168.88.24/api',
+  // Внешний доступ через MikroTik NAT (для продакшена и внешних устройств)
+  PRODUCTION: 'http://85.113.27.42:8530/api',
+};
+
+// Получение текущего URL API на основе среды
+export const getApiBaseUrl = () => {
+  // Используем DEVELOPMENT для локального тестирования
+  // Измените на PRODUCTION для доступа через интернет
+  return __DEV__ ? ENV_URLS.DEVELOPMENT : ENV_URLS.PRODUCTION;
+};
+
 // Базовые настройки API
 export const API_CONFIG = {
-  BASE_URL: 'http://192.168.88.24/api',  // Через Nginx порт 80
+  BASE_URL: getApiBaseUrl(),  // Автоматически выбирается на основе режима
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,
@@ -9,9 +24,9 @@ export const API_CONFIG = {
 // URL для Traccar GPS данных
 export const TRACCAR_CONFIG = {
   // Для GPS данных используем основной URL без /traccar/ пути
-  GPS_ENDPOINT: 'http://192.168.88.24', // Через Nginx порт 80
+  GPS_ENDPOINT: __DEV__ ? 'http://192.168.88.24' : 'http://85.113.27.42:8530',
   // Для API запросов к Traccar
-  API_ENDPOINT: 'http://192.168.88.24/traccar/api',
+  API_ENDPOINT: __DEV__ ? 'http://192.168.88.24/traccar/api' : 'http://85.113.27.42:8530/traccar/api',
 };
 
 // Коды ошибок
@@ -158,22 +173,6 @@ export const LIMITS = {
   MAX_PHOTO_SIZE: 10 * 1024 * 1024, // 10MB
   MAX_FACE_CHECK_ATTEMPTS: 3,
   SESSION_TIMEOUT: 24 * 60 * 60 * 1000, // 24 часа
-};
-
-// URL для разных сред
-export const ENV_URLS = {
-  DEVELOPMENT: 'http://localhost:8080/api',
-  STAGING: 'https://staging-your-api.com/api',
-  PRODUCTION: 'https://your-production-api.com/api',
-};
-
-// Получение текущего URL API на основе среды
-export const getApiBaseUrl = () => {
-  if (IS_DEVELOPMENT) {
-    return ENV_URLS.DEVELOPMENT;
-  }
-  // Здесь можно добавить логику для определения среды
-  return ENV_URLS.PRODUCTION;
 };
 
 export default {
